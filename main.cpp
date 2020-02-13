@@ -1,5 +1,6 @@
 #include <iostream>
 using namespace std;
+double expression();
 
 class Token {
     public:
@@ -73,10 +74,17 @@ void TokenStream::put_back(Token t) {
 
 double primary() {
     Token t = ts.get();
+    Token t2; // 提前声明 t2 和 d，注意 switch-case 中不能定义对象
+    double d;
     switch(t.kind) {
         case 'd': 
             // cout << "primary: " << t.value << endl; 
             return t.value;
+        case '(':
+            d = expression();
+            t2 = ts.get();
+            if(t2.kind != ')') throw runtime_error("缺少反括号。");
+            return d;
         default: 
             throw runtime_error("错误的表达式！");
     }
@@ -85,9 +93,14 @@ double primary() {
 double term() {
     double left = primary();
     Token t = ts.get();
+    double divider;
     switch(t.kind) {
         case '*': return left * term(); break;
-        case '/': return left / term(); break;
+        case '/': 
+            // 除法计算，注意处理除数为0的情况
+            divider = term();
+            if(divider == 0) throw runtime_error("除数不能为零。");
+            return left / divider; 
         default: 
             ts.put_back(t); 
             // cout << "term: " << left << endl; 
