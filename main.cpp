@@ -51,7 +51,7 @@ Token TokenStream::get() {
         case '7':
         case '8':
         case '9':
-            // trick：若是数字，则以double形式重新读取
+            // trick：若是数字，则放回stream，以double形式重新读取
             cin.putback(c);
             double d;
             cin >> d;
@@ -78,7 +78,6 @@ double primary() {
     double d;
     switch(t.kind) {
         case 'd': 
-            // cout << "primary: " << t.value << endl; 
             return t.value;
         case '(':
             d = expression();
@@ -103,7 +102,6 @@ double term() {
             return left / divider; 
         default: 
             ts.put_back(t); 
-            // cout << "term: " << left << endl; 
             return left;
     }
 
@@ -136,22 +134,20 @@ double expression() {
             return left - expression(); break;
         default: 
             ts.put_back(t); 
-            // cout << "expression: " << left << endl; 
             return left;
     }
 }
 
 
 int main() {
-    // cout << ">";
+    cout << ">";
     // 控制结构
     while (cin) {
 		try {
-            cout << ">";
             double result;
 			Token token = ts.get();
 			if (token.kind =='q') break;
-			else if (token.kind == '?') cout << "=" << result << endl;
+			else if (token.kind == '?') cout << "=" << result << "\n>";
 			else {
                 ts.put_back(token);
 				result=expression();
@@ -166,4 +162,3 @@ int main() {
 	}
     return 0;
 }
-
