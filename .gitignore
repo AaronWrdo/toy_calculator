@@ -1,0 +1,8 @@
+# 参考代码
+cal.cpp
+
+# 忽略输出文件
+*.out
+
+# 忽略vscode配置
+.vscode
