@@ -60,6 +60,7 @@ Token TokenStream::get() {
         case '-':
         case '*':
         case '/':
+        case '%':
             return Token(c);
         default:
             return Token(c);
@@ -103,7 +104,12 @@ double term() {
             // 除法计算，注意处理除数为0的情况
             divider = term();
             if(divider == 0) throw runtime_error("除数不能为零。");
-            return left / divider; 
+            return left / divider;
+        case '%': 
+            // 取余运算
+            divider = term();
+            if(divider == 0) throw runtime_error("除数不能为零。");
+            return left - (divider * int(left / divider));
         default: 
             ts.put_back(t); 
             return left;
