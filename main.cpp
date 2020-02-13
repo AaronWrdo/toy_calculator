@@ -1,12 +1,16 @@
 #include <iostream>
+#include <vector>
 using namespace std;
 double expression();
 
+// token.kind == n 表示token为数字
+const char number = 'n';
+
+// Token类
 class Token {
     public:
         char kind;
         double value;
-        // constractor
         Token(){};
         Token(char, double);
 };
@@ -19,6 +23,7 @@ Token::Token(char k, double v = 0){
 }
 
 
+// Token输入流类，用于读取和存放token
 class TokenStream {
     private: 
         bool full;
@@ -55,7 +60,7 @@ Token TokenStream::get() {
             cin.putback(c);
             double d;
             cin >> d;
-            return Token('d', d);
+            return Token(number, d);
         case '+':
         case '-':
         case '*':
@@ -78,7 +83,7 @@ double primary() {
     Token t2; // 提前声明 t2 和 d，注意 switch-case 中不能定义对象
     double d;
     switch(t.kind) {
-        case 'd': 
+        case number: 
             return t.value;
         case '+': 
             return primary();
@@ -150,14 +155,20 @@ double expression() {
 
 
 int main() {
-    cout << ">";
+    cout << "================= 简易计算器 ===============\n"
+         << "输入要计算的表达式后，输入'?'显示结果。\n"
+         << "支持加(+) 减(-) 乘(*) 除(/) 取余(%) 运算。\n"
+         << "支持浮点数运算。\n"
+         << "输入'q'退出计算器。\n";
+         
     // 控制结构
     while (cin) {
         try {
+            cout << ">";
             double result;
             Token token = ts.get();
             if (token.kind =='q') break;
-            else if (token.kind == '?') cout << "=" << result << "\n>";
+            else if (token.kind == '?') cout << "=" << result << endl;
             else {
                 ts.put_back(token);
                 result=expression();
@@ -165,6 +176,10 @@ int main() {
         }
         catch(exception &e) {
             cerr << "Error:" << e.what() << endl;
+            while(cin) { // 若表达式出错，则不输出该表达式结果
+                Token token = ts.get();
+                if(token.kind == '?') break; // 以‘?’作为表达式的结尾
+            }
         }
         catch(...) {
             cerr << "Unkwon error." << endl;
