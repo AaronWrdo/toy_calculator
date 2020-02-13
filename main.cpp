@@ -79,6 +79,10 @@ double primary() {
     switch(t.kind) {
         case 'd': 
             return t.value;
+        case '+': 
+            return primary();
+        case '-':
+            return -primary();
         case '(':
             d = expression();
             t2 = ts.get();
@@ -143,22 +147,22 @@ int main() {
     cout << ">";
     // 控制结构
     while (cin) {
-		try {
+        try {
             double result;
-			Token token = ts.get();
-			if (token.kind =='q') break;
-			else if (token.kind == '?') cout << "=" << result << "\n>";
-			else {
+            Token token = ts.get();
+            if (token.kind =='q') break;
+            else if (token.kind == '?') cout << "=" << result << "\n>";
+            else {
                 ts.put_back(token);
-				result=expression();
-			}
-		}
-		catch(exception &e) {
-			cerr<<"Error:"<<e.what()<<endl;
-		}
-		catch(...) {
-			cerr<<"Unkwon error."<<endl;
-		}
-	}
+                result=expression();
+            }
+        }
+        catch(exception &e) {
+            cerr << "Error:" << e.what() << endl;
+        }
+        catch(...) {
+            cerr << "Unkwon error." << endl;
+        }
+    }
     return 0;
 }
