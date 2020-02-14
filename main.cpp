@@ -3,24 +3,27 @@
 using namespace std;
 double expression();
 
-// token.kind == n 表示token为数字
-const char number = 'n';
+
+// token.type == 'n' 表示token为数字
+// token.type == 'v' 表示为字符串
+const char NUMBER = 'n';
+const char STRING = 's';
+
+// todo：定义var为关键字，不能作为变量名
+const string V = "var";
+
 
 // Token类
 class Token {
     public:
-        char kind;
+        char type;
         double value;
+        string name;
         Token(){};
-        Token(char, double);
+        Token(char c):type(c){}; // 符号
+        Token(char c, double d):type(c), value(d){}; // 数字
+        Token(char c, string s): type(c), name(s){}; // 字符串
 };
-
-Token::Token(char k, double v = 0){
-    // if(v == 0) cout << "==== get_token: " << k << endl;
-    // else cout << "==== get_token: " << v << endl;
-    kind = k;
-    value = v;
-}
 
 
 // Token输入流类，用于读取和存放token
@@ -28,7 +31,6 @@ class TokenStream {
     private: 
         bool full;
         Token buffer;
-
     public:
         TokenStream(){full = false; buffer = 0;}; 
         Token get();
@@ -36,6 +38,7 @@ class TokenStream {
 } ts; // 全局对象ts
 
 
+// 读取token，起到词法分析的作用
 Token TokenStream::get() {
     if (full) {
         full = false;
@@ -46,6 +49,15 @@ Token TokenStream::get() {
     Token t;
     cin >> c;
     switch(c) {
+        case '+':
+        case '-':
+        case '*':
+        case '/':
+        case '%':
+        case '=':
+        case '?':
+            // 处理读入符号的情况
+            return Token(c);
         case '0':
         case '1':
         case '2':
@@ -56,25 +68,67 @@ Token TokenStream::get() {
         case '7':
         case '8':
         case '9':
-            // trick：若是数字，则放回stream，以double形式重新读取
+            // 处理读入数字的情况
+            // trick：第一位读到数字，则将其放回stream，以double形式重新读取
             cin.putback(c);
             double d;
             cin >> d;
-            return Token(number, d);
-        case '+':
-        case '-':
-        case '*':
-        case '/':
-        case '%':
-            return Token(c);
+            return Token(NUMBER, d);
         default:
-            return Token(c);
+            // 处理读入 name 的情况
+            // 注意此处不能和数字用同一种思路处理，必须逐个读入char并判断
+            if(isalpha(c)) { // 合法的 name 必须以字母开始
+                string s;
+                s += c;
+                // 剩余字符为字母或数字
+                // 使用 cin.get() 以避免跳过空格、tab等
+                while(cin.get(c) && (isalpha(c) || isdigit(c))) s += c;
+                cin.putback(c); // 将多读的一个char放回
+                return Token(STRING, s);
+            }
+            throw runtime_error("不符合规则的字符！");
     }
 }
 
+// 将token临时放入缓冲区
 void TokenStream::put_back(Token t) {
     full = true;
     buffer = t;
+}
+
+
+// 变量类
+class Variable {
+    public:
+        string name;
+        double value;
+        Variable(){}
+        Variable(string n, double d):name(n), value(d){}
+};
+vector<Variable> var_table; // 存放所有定义的变量
+
+void print_var_table() {
+    int i, j = var_table.size();
+    cout << "===== 变量表更新。定义的变量如下：" << endl;
+    for (i = 0; i < j; i++) {
+        cout << var_table[i].name << " = " << var_table[i].value << endl;
+    }
+}
+
+// 在 var_table 中查找变量，若有则返回变量的值
+double get_var(string name) {
+    for(int i = 0; i < var_table.size(); i++) {
+        if (name == var_table[i].name) 
+            return var_table[i].value;
+    }
+    throw runtime_error("找不到名为"+name+"的变量！");
+}
+
+// 设置变量
+void set_var(string name, double value) {
+    // todo: 如果变量已经存在？
+    // 目前：如果存在就覆盖
+    var_table.push_back(Variable(name, value));
 }
 
 
@@ -82,9 +136,11 @@ double primary() {
     Token t = ts.get();
     Token t2; // 提前声明 t2 和 d，注意 switch-case 中不能定义对象
     double d;
-    switch(t.kind) {
-        case number: 
+    switch(t.type) {
+        case NUMBER: 
             return t.value;
+        case STRING: // 处理变量
+            return get_var(t.name);
         case '+': 
             return primary();
         case '-':
@@ -92,18 +148,19 @@ double primary() {
         case '(':
             d = expression();
             t2 = ts.get();
-            if(t2.kind != ')') throw runtime_error("缺少反括号。");
+            if(t2.type != ')') throw runtime_error("缺少反括号。");
             return d;
         default: 
-            throw runtime_error("错误的表达式！");
+            throw runtime_error("不符合规则的表达式！");
     }
 }
+
 
 double term() {
     double left = primary();
     Token t = ts.get();
     double divider;
-    switch(t.kind) {
+    switch(t.type) {
         case '*': return left * term(); break;
         case '/': 
             // 除法计算，注意处理除数为0的情况
@@ -119,30 +176,12 @@ double term() {
             ts.put_back(t); 
             return left;
     }
-
-    // 迭代版本的term，供参考
-    // while (true)
-	// {
-	// 	Token token=TokenStream::get();
-	// 	switch (token.kind)
-	// 	{
-	// 	case '*':
-	// 		left*=primary();
-	// 		break;
-	// 	case '/':
-	// 		left/=primary();
-	// 		break;
-	// 	default:
-    //         ts.put_back(t);
-	// 		return left;
-	// 	}
-	// }
 }
 
 double expression() {
     double left = term();
     Token t = ts.get();
-    switch(t.kind) {
+    switch(t.type) {
         case '+':
             return left + expression(); break;
         case '-':
@@ -154,31 +193,52 @@ double expression() {
 }
 
 
+double declaration() {
+    Token t1 = ts.get();
+    if(t1.name == V) {
+        string var_name = ts.get().name;
+
+        Token t2 = ts.get();
+        if (t2.type != '=') throw runtime_error("赋值语句缺少‘=’！");
+
+        Token t3 = ts.get(); // todo: 右边值可以通过计算得到
+        if (t3.type != NUMBER) throw runtime_error("错误的赋值语句。");
+
+        set_var(var_name, t3.value);
+        print_var_table(); // 打印var_table
+        return t3.value;
+    }
+    ts.put_back(t1);
+    return expression();
+}
+
+
 int main() {
     cout << "================= 简易计算器 ===============\n"
          << "输入要计算的表达式后，输入'?'显示结果。\n"
          << "支持加(+) 减(-) 乘(*) 除(/) 取余(%) 运算。\n"
          << "支持浮点数运算。\n"
+         << "支持自定义变量。\n"
          << "输入'q'退出计算器。\n";
          
     // 控制结构
-    while (cin) {
+    while(cin) {
         try {
-            cout << ">";
+            cout << "> ";
             double result;
             Token token = ts.get();
-            if (token.kind =='q') break;
-            else if (token.kind == '?') cout << "=" << result << endl;
+            if (token.name == "q") break;
+            else if (token.type == '?') cout << "=" << result << endl;
             else {
                 ts.put_back(token);
-                result=expression();
+                result = declaration();
             }
         }
         catch(exception &e) {
             cerr << "Error:" << e.what() << endl;
             while(cin) { // 若表达式出错，则不输出该表达式结果
                 Token token = ts.get();
-                if(token.kind == '?') break; // 以‘?’作为表达式的结尾
+                if(token.type == '?') break; // 以‘?’作为表达式的结尾
             }
         }
         catch(...) {
