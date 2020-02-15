@@ -172,13 +172,6 @@ double primary() {
 
 double term() {
     double left = primary();
-
-    // 判断输入状态
-    // int i = cin.get();
-    // cout << "i: " << i << endl;
-    // cin.putback(i);
-    // if(i == 10) return left;
-
     Token t = ts.get();
     double divider;
     switch(t.type) {
@@ -201,13 +194,6 @@ double term() {
 
 double expression() {
     double left = term();
-
-    // 判断输入状态
-    // int i = cin.get();
-    // cout << "i: " << i << endl;
-    // cin.putback(i);
-    // if(i == 10) {cout << "空。直接返回。" << endl; return left;}
-
     Token t = ts.get();
     switch(t.type) {
         case '+':
