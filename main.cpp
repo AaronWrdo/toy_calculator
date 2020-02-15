@@ -6,35 +6,38 @@ double expression();
 
 // token.type == 'n' 表示token为数字
 // token.type == 'v' 表示为字符串
+// token.type == 'o' 为保留字
 const char NUMBER = 'n';
 const char STRING = 's';
+const char RESERVED = 'r';
 
-// todo：定义var为关键字，不能作为变量名
+
+// 定义"var"为保留字，不能作为变量名
 const string V = "var";
 
 
 // Token类
 class Token {
-    public:
-        char type;
-        double value;
-        string name;
-        Token(){};
-        Token(char c):type(c){}; // 符号
-        Token(char c, double d):type(c), value(d){}; // 数字
-        Token(char c, string s): type(c), name(s){}; // 字符串
+public:
+    char type;
+    double value;
+    string name;
+    Token(){};
+    Token(char c):type(c){}; // 符号
+    Token(char c, double d):type(c), value(d){}; // 数字
+    Token(char c, string s): type(c), name(s){}; // 字符串
 };
 
 
 // Token输入流类，用于读取和存放token
 class TokenStream {
-    private: 
-        bool full;
-        Token buffer;
-    public:
-        TokenStream(){full = false; buffer = 0;}; 
-        Token get();
-        void put_back(Token);
+private:
+    bool full;
+    Token buffer;
+public:
+    TokenStream(){full = false; buffer = 0;};
+    Token get();
+    void put_back(Token);
 } ts; // 全局对象ts
 
 
@@ -56,6 +59,7 @@ Token TokenStream::get() {
         case '%':
         case '=':
         case '?':
+        case ';':
             // 处理读入符号的情况
             return Token(c);
         case '0':
@@ -75,14 +79,19 @@ Token TokenStream::get() {
             cin >> d;
             return Token(NUMBER, d);
         default:
-            // 处理读入 name 的情况
+            // 处理读入 string 的情况
             // 注意此处不能和数字用同一种思路处理，必须逐个读入char并判断
             if(isalpha(c)) { // 合法的 name 必须以字母开始
                 string s;
                 s += c;
+
                 // 剩余字符为字母或数字
                 // 使用 cin.get() 以避免跳过空格、tab等
                 while(cin.get(c) && (isalpha(c) || isdigit(c))) s += c;
+
+                // 处理保留字
+                if(s == V) return Token(RESERVED, s); 
+
                 cin.putback(c); // 将多读的一个char放回
                 return Token(STRING, s);
             }
@@ -99,17 +108,17 @@ void TokenStream::put_back(Token t) {
 
 // 变量类
 class Variable {
-    public:
-        string name;
-        double value;
-        Variable(){}
-        Variable(string n, double d):name(n), value(d){}
+public:
+    string name;
+    double value;
+    Variable(){}
+    Variable(string n, double d):name(n), value(d){}
 };
 vector<Variable> var_table; // 存放所有定义的变量
 
 void print_var_table() {
     int i, j = var_table.size();
-    cout << "===== 变量表更新。定义的变量如下：" << endl;
+    cout << "===== 定义的变量如下：" << endl;
     for (i = 0; i < j; i++) {
         cout << var_table[i].name << " = " << var_table[i].value << endl;
     }
@@ -118,7 +127,7 @@ void print_var_table() {
 // 在 var_table 中查找变量，若有则返回变量的值
 double get_var(string name) {
     for(int i = 0; i < var_table.size(); i++) {
-        if (name == var_table[i].name) 
+        if (name == var_table[i].name)
             return var_table[i].value;
     }
     throw runtime_error("找不到名为"+name+"的变量！");
@@ -126,8 +135,13 @@ double get_var(string name) {
 
 // 设置变量
 void set_var(string name, double value) {
-    // todo: 如果变量已经存在？
-    // 目前：如果存在就覆盖
+    // 先判断变量是否存在，如果已经存在，就覆盖
+    for(int i = 0; i < var_table.size(); i++) {
+        if (name == var_table[i].name) {
+            var_table[i].value = value;
+            return;
+        }
+    }
     var_table.push_back(Variable(name, value));
 }
 
@@ -137,11 +151,11 @@ double primary() {
     Token t2; // 提前声明 t2 和 d，注意 switch-case 中不能定义对象
     double d;
     switch(t.type) {
-        case NUMBER: 
+        case NUMBER:
             return t.value;
         case STRING: // 处理变量
             return get_var(t.name);
-        case '+': 
+        case '+':
             return primary();
         case '-':
             return -primary();
@@ -150,7 +164,7 @@ double primary() {
             t2 = ts.get();
             if(t2.type != ')') throw runtime_error("缺少反括号。");
             return d;
-        default: 
+        default:
             throw runtime_error("不符合规则的表达式！");
     }
 }
@@ -158,57 +172,77 @@ double primary() {
 
 double term() {
     double left = primary();
+
+    // 判断输入状态
+    // int i = cin.get();
+    // cout << "i: " << i << endl;
+    // cin.putback(i);
+    // if(i == 10) return left;
+
     Token t = ts.get();
     double divider;
     switch(t.type) {
         case '*': return left * term(); break;
-        case '/': 
+        case '/':
             // 除法计算，注意处理除数为0的情况
             divider = term();
             if(divider == 0) throw runtime_error("除数不能为零。");
             return left / divider;
-        case '%': 
+        case '%':
             // 取余运算
             divider = term();
             if(divider == 0) throw runtime_error("除数不能为零。");
             return left - (divider * int(left / divider));
-        default: 
-            ts.put_back(t); 
+        default:
+            ts.put_back(t);
             return left;
     }
 }
 
 double expression() {
     double left = term();
+
+    // 判断输入状态
+    // int i = cin.get();
+    // cout << "i: " << i << endl;
+    // cin.putback(i);
+    // if(i == 10) {cout << "空。直接返回。" << endl; return left;}
+
     Token t = ts.get();
     switch(t.type) {
         case '+':
-            return left + expression(); break;
+            return left + expression();
         case '-':
-            return left - expression(); break;
-        default: 
-            ts.put_back(t); 
+            return left - expression();
+        default:
+            ts.put_back(t);
             return left;
     }
 }
 
 
 double declaration() {
-    Token t1 = ts.get();
-    if(t1.name == V) {
-        string var_name = ts.get().name;
+    Token t = ts.get();
+    Token t1;
+    if(t.name == V) {
+        t1 = ts.get();
+        if(t1.type == RESERVED) throw runtime_error("不能使用保留字作为变量名！");
+        string var_name = t1.name;
 
-        Token t2 = ts.get();
-        if (t2.type != '=') throw runtime_error("赋值语句缺少‘=’！");
+        t1 = ts.get();
+        if (t1.type != '=') throw runtime_error("赋值语句缺少‘=’！");
 
-        Token t3 = ts.get(); // todo: 右边值可以通过计算得到
-        if (t3.type != NUMBER) throw runtime_error("错误的赋值语句。");
+        double right = expression();
+        set_var(var_name, right);
 
-        set_var(var_name, t3.value);
+        t1 = ts.get();
+        if (t1.type != ';') throw runtime_error("赋值语句缺少‘;’！");
+
+        cout << "===== 变量表更新。" << endl;
         print_var_table(); // 打印var_table
-        return t3.value;
+        return right;
     }
-    ts.put_back(t1);
+    ts.put_back(t);
     return expression();
 }
 
@@ -220,8 +254,10 @@ int main() {
          << "支持浮点数运算。\n"
          << "支持自定义变量。\n"
          << "输入'q'退出计算器。\n";
-         
+
     // 控制结构
+    // todo:优化控制结构
+    // todo:出结果和提示的格式优化
     while(cin) {
         try {
             cout << "> ";
