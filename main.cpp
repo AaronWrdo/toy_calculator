@@ -244,6 +244,9 @@ int main() {
     // 控制结构
     // todo:优化控制结构
     // todo:出结果和提示的格式优化
+    // todo:添加内置变量 (pi, e...)
+    // todo:添加函数(平方，开方...)
+    // todo:添加命令（查看变量表，查看 help 信息）
     while(cin) {
         try {
             cout << "> ";
